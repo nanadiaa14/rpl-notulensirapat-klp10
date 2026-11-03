@@ -74,19 +74,13 @@
             <div class="lg:col-span-7 bg-white p-8 lg:p-10 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between" x-data="{ showPassword: false }">
                 <div>
                     <!-- Header Form -->
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 class="text-xl font-extrabold text-[#6B1D1D]">Login</h3>
-                            <p class="text-xs text-gray-500 mt-1">Gunakan email dinas/username dan kata sandi Anda.</p>
-                        </div>
-                        <a href="#" class="text-xs font-medium text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
-                            &larr; Kembali
-                        </a>
+                    <div class="mb-6">
+                        <h3 class="text-xl font-extrabold text-[#6B1D1D]">Login</h3>
+                        <p class="text-xs text-gray-500 mt-1">Gunakan email dinas/username dan kata sandi Anda.</p>
                     </div>
 
-                    <!-- FORM -->
-                    <form action="#" method="POST" class="space-y-4">
-                        @csrf
+                    <!-- FORM DISESUAIKAN UNTUK MENGARAHKAN KE ROUTE BUAT-NOTULEN -->
+                    <form action="/buat-notulen" method="GET" class="space-y-4">
                         
                         <!-- Input Email/NIP -->
                         <div>
@@ -150,7 +144,7 @@
 
                     <!-- Link Daftar -->
                     <p class="text-xs text-gray-600 mt-4 text-left">
-                        Belum punya akun? <a href="#" class="text-[#6B1D1D] font-bold hover:underline">Daftar</a>
+                        Belum punya akun? <a href="/register" class="text-[#6B1D1D] font-bold hover:underline">Daftar</a>
                     </p>
                 </div>
 
