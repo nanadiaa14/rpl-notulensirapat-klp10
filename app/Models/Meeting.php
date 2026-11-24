@@ -11,6 +11,7 @@ class Meeting extends Model
 
     protected $fillable = [
         'created_by',
+        'notulis_id',
         'title',
         'location',
         'meeting_date',
@@ -37,8 +38,25 @@ class Meeting extends Model
         return $this->hasOne(Transcript::class);
     }
 
-    public function meetingNote()
+    public  function meetingNote()
     {
         return $this->hasOne(MeetingNote::class);
+    }
+
+    public function notulis()
+    {
+        return $this->belongsTo(User::class, 'notulis_id');
+    }
+
+    public function isFinalized(): bool
+    {
+        return $this->meetingNote?->status === 'finalized';
+    }
+
+    public function scopeMilik($query, int $userId)
+    {
+        return $query->where(function ($q) use ($userId) {
+            $q->where('created_by', $userId)->orWhere('notulis_id', $userId);
+        });
     }
 }

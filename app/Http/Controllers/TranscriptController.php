@@ -55,7 +55,11 @@ class TranscriptController extends Controller
     # Memperbarui transcript  
     public function update(Request $request, Meeting $meeting, Transcript $transcript)
     {
-        if (!$transcript->meeting_id != $meeting->id) {
+        if ($meeting->isFinalized()) {
+            return response()->json(['message' => 'Meeting yang notulennya sudah difinalisasi tidak dapat diubah.'], 422);
+        }
+
+        if ($transcript->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Transcript tidak sesuai dengan meeting.'], 404);
         }
 
@@ -77,30 +81,13 @@ class TranscriptController extends Controller
         ]);
     }
 
-    # Mengubah status proses transcript
-    public function updateStatus(Request $request, Meeting $meeting)
-    {
-        $transcript = $meeting->transcript;
-
-        if ($transcript) {
-            return response()->json(['message' => 'Transcript belum tersedia.'], 404);
-        }
-
-        $validated = $request->validate([
-            'processing_status' => 'required|in:pending,processing,completed,failed',
-        ]);
-
-        $transcript->update('processing_status', $validated['processing_status']);  
-
-        return response()->json([
-            'message' => 'Status proses transcript berhasil diperbarui.',
-            'data' => $transcript,
-        ]);
-    }
-
     # Menghapus transcript
     public function destroy(Meeting $meeting, Transcript $transcript)
     {
+        if ($meeting->isFinalized()) {
+            return response()->json(['message' => 'Meeting yang notulennya sudah difinalisasi tidak dapat diubah.'], 422);
+        }
+        
         if ($transcript->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Transcript tidak sesuai dengan meeting.'], 404);
         }

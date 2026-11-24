@@ -80,7 +80,8 @@
                     </div>
 
                     <!-- FORM DISESUAIKAN UNTUK MENGARAHKAN KE ROUTE BUAT-NOTULEN -->
-                    <form action="/buat-notulen" method="GET" class="space-y-4">
+                    <form action="/login" method="POST" class="space-y-4">
+                        @csrf
                         
                         <!-- Input Email/NIP -->
                         <div>
@@ -89,9 +90,13 @@
                                 type="text" 
                                 name="login" 
                                 placeholder="Masukkan email atau NIP" 
+                                value="{{ old('login') }}"
                                 class="w-full px-3.5 py-2.5 text-xs lg:text-sm rounded-lg border border-gray-900 focus:outline-none focus:ring-2 focus:ring-[#6B1D1D]/20 focus:border-[#6B1D1D] transition-all placeholder:text-gray-400"
                                 required
                             >
+                            @error('login')
+                                <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <!-- Input Kata Sandi + Toggle Eye -->
@@ -140,6 +145,11 @@
                         >
                             Masuk
                         </button>
+
+                        @if (session('status'))
+                            <p class="mb-4 text-xs text-emerald-700">{{ session('status') }}</p>
+                        @endif
+                        
                     </form>
 
                     <!-- Link Daftar -->

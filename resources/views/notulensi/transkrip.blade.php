@@ -29,68 +29,12 @@
 </head>
 <body class="bg-white text-gray-800 font-sans antialiased min-h-screen flex" x-data="transkripApp()">
 
-    <!-- SIDEBAR KIRI -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between shrink-0 min-h-screen no-print">
-        <div>
-            <!-- LOGO BRIDA KOTA MAKASSAR -->
-            <div class="p-6 border-b border-gray-200 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-[#E52329] flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="font-extrabold text-base text-gray-900 tracking-tight leading-tight">BRIDA</h1>
-                    <p class="text-[9px] font-bold text-gray-700 uppercase tracking-wider">KOTA MAKASSAR</p>
-                </div>
-            </div>
-
-            <!-- NAVIGASI MENU -->
-            <nav class="p-4 space-y-2">
-                <!-- MENU SIGAP NOTULENSI -->
-                <div class="flex items-center gap-2 px-2 text-xs font-bold text-gray-900">
-                    <svg class="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span>SIGAP Notulensi</span>
-                </div>
-
-                <!-- SUBMENU -->
-                <div class="pl-4 space-y-1.5 pt-0.5">
-                    <!-- BUAT NOTULEN (AKTIF / PILL MERAH MAROON) -->
-                    <a href="/buat-notulen" class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#701A1E] text-white text-xs font-bold rounded-xl shadow-sm transition">
-                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        <span>Buat Notulen</span>
-                    </a>
-
-                    <!-- RIWAYAT -->
-                    <a href="/riwayat-notulensi" class="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-gray-800 hover:text-[#701A1E] transition">
-                        <svg class="w-3.5 h-3.5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <span>Riwayat</span>
-                    </a>
-                </div>
-            </nav>
-        </div>
-
-        <!-- TOMBOL KELUAR DI BAWAH -->
-        <div class="p-4 border-t border-gray-200">
-            <a href="/" class="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-gray-800 hover:text-red-700 transition">
-                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                </svg>
-                <span>Keluar</span>
-            </a>
-        </div>
-    </aside>
+    @include('partials.sidebar')
 
     <!-- AREA KONTEN UTAMA -->
     <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <!-- HEADER TOP BAR -->
-        <header class="bg-white border-b border-gray-200 px-8 py-3.5 flex justify-end items-center no-print">
+        <header class="bg-white border-b border-gray-200 px-8 h-20 flex justify-end items-center no-print">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-[#D1D5DB] rounded-full shrink-0"></div>
                 <span class="text-xs font-bold text-gray-800 tracking-wider">USERNAME</span>

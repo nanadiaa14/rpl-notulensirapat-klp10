@@ -88,8 +88,8 @@ class MeetingNoteController extends Controller
         ]);
 
         // Hapus signature lama jika ada
-        if ($meetingNote->signature_path && Storage::disk('public')->exists($meetingNote->signature_path)) {
-            Storage::disk('public')->delete($meetingNote->signature_path);
+        if ($meetingNote->signature_path && Storage::disk('local')->exists($meetingNote->signature_path)) {
+            Storage::disk('local')->delete($meetingNote->signature_path);
         }
 
         $signaturePath = $request->file('signature')->store(
@@ -105,14 +105,13 @@ class MeetingNoteController extends Controller
             'message' => 'Tanda tangan berhasil diunggah.',
             'data' => [
                 'signature_path' => $meetingNote->signature_path,
-                'signature_url' => Storage::url($meetingNote->signature_path),
         ]]);
     }
 
     # Finalisasi notulen
     public function finalize(Meeting $meeting, MeetingNote $meetingNote)
     {
-        if (!$meetingNote->meeting_id != $meeting->id) {
+        if ($meetingNote->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Notulen tidak sesuai dengan meeting.'], 404);
         }
 
@@ -147,8 +146,8 @@ class MeetingNoteController extends Controller
         }
 
         // Hapus signature jika ada
-        if ($meetingNote->signature_path && Storage::disk('public')->exists($meetingNote->signature_path)) {
-            Storage::disk('public')->delete($meetingNote->signature_path);
+        if ($meetingNote->signature_path && Storage::disk('local')->exists($meetingNote->signature_path)) {
+            Storage::disk('local')->delete($meetingNote->signature_path);
         }
 
         $meetingNote->delete();

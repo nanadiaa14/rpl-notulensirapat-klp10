@@ -15,11 +15,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Admin',
+            'username' => 'admin',
+            'nip' => '199001012020011001',
+            'unit' => 'IT',
+            'email' => 'admin@example.com',
+            'password' => 'Admin12345',
+            'nomor_hp' => '081234567890',
+        ]);
+
+        // pegawai lain, supaya dropdown notulis ada isinya
+        User::factory(4)->create([
+            'password' => 'Pegawai12345',
         ]);
     }
 }
