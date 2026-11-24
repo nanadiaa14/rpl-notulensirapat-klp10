@@ -73,7 +73,7 @@
 
             <!-- GRID DUA KOLOM: FORM SPESIFIKASI & REKAM AUDIO -->
             <div x-data="{
-                formKiri: { judul: '', lokasi: '', pemimpin: '', notulis: '', poin: '' },
+                formKiri: { judul: '', lokasi: '', pemimpin: '', notulis_id: {{ auth()->id() }}, poin: '' },
                 formKanan: { judul: '', poin: '' },
                 showSuccessModal: false,
                 copyData() {
@@ -103,7 +103,7 @@
                         <!-- FIELD NOTULIS -->
                         <div>
                             <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">NOTULIS</label>
-                            <select name="notulis_id" x-model="formKiri.notulis_id" class="...">
+                            <select name="notulis_id" x-model="formKiri.notulis_id" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm">
                                 @foreach ($pegawai as $p)
                                     <option value="{{ $p->id }}">{{ $p->name }}</option>
                                 @endforeach

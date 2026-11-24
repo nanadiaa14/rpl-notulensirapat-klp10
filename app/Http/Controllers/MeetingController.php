@@ -16,6 +16,11 @@ class MeetingController extends Controller
             ->milik(auth()->id())
             ->latest()
             ->get();
+        
+        return response()->json([
+            'message' => 'Daftar meeting berhasil diambil.',
+            'data' => $meetings,
+        ]);
     }
 
     # Membuat meeting baru
@@ -81,8 +86,8 @@ class MeetingController extends Controller
             'topics.*' => ['required', 'string', 'max:500'],
         
             'meeting_date' => ['sometimes', 'nullable', 'date'],
-            'time_start' => ['sometimes', 'required_with:time_end', 'date_format:H:i'],
-            'time_end' => ['sometimes', 'required_with:time_start', 'date_format:H:i', 'after:time_start'],
+            'time_start' => ['sometimes', 'required_with:time_end', 'date_format:H:i,H:i:s'],
+            'time_end' => ['sometimes', 'required_with:time_start', 'date_format:H:i,H:i:s', 'after:time_start'],
         ]);
 
         if (array_key_exists('meeting_date', $validated) || array_key_exists('time_start', $validated)) {
@@ -200,18 +205,14 @@ class MeetingController extends Controller
     # Menghapus meeting.
     public function destroy(Meeting $meeting)
     {
-        if (
-            $meeting->audio_path &&
-            Storage::disk('local')->exists($meeting->audio_path)
-        ) {
-            Storage::disk('local')->delete($meeting->audio_path);
+        if ($meeting->isFinalized()) {
+            return response()->json(['message' => 'Meeting yang notulennya sudah difinalisasi tidak dapat dihapus.'], 422);
         }
 
+        $meeting->delete();
         Storage::disk('local')->deleteDirectory('meetings/' . $meeting->id);
 
-        return response()->json([
-            'message' => 'Meeting berhasil dihapus.',
-        ]);
+        return response()->json(['message' => 'Meeting berhasil dihapus.']);
     }
 
     public function archive(Request $request)

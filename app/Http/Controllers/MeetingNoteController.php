@@ -50,7 +50,7 @@ class MeetingNoteController extends Controller
     # Memperbarui isi notulen
     public function update(Request $request, Meeting $meeting, MeetingNote $meetingNote)
     {
-        if (!$meetingNote->meeting_id != $meeting->id) {
+        if ($meetingNote->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Notulen tidak sesuai dengan meeting.'], 404);
         }
 
@@ -75,7 +75,7 @@ class MeetingNoteController extends Controller
     # Upload e-signature
     public function uploadSignature(Request $request, Meeting $meeting, MeetingNote $meetingNote)
     {
-        if (!$meetingNote->meeting_id != $meeting->id) {
+        if ($meetingNote->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Notulen tidak sesuai dengan meeting.'], 404);
         }
 
@@ -137,7 +137,7 @@ class MeetingNoteController extends Controller
     # Menghapus draft notulen
     public function destroy(Meeting $meeting, MeetingNote $meetingNote)
     {
-        if (!$meetingNote->meeting_id != $meeting->id) {
+        if ($meetingNote->meeting_id != $meeting->id) {
             return response()->json(['message' => 'Notulen tidak sesuai dengan meeting.'], 404);
         }
 
