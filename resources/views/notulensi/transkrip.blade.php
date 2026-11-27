@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Transkrip Notulensi - SIGAP BRIDA</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         [x-cloak] { display: none !important; }
+        #editor:empty::before {
+            content: attr(data-placeholder);
+            color: rgba(112, 26, 30, 0.45);
+        }
 
         /* Format cetak / simpan ke PDF */
         @media print {
@@ -27,6 +32,28 @@
         }
     </style>
 </head>
+
+@php
+    $note = $meeting->meetingNote;
+    $tgl = $meeting->meeting_date ? $meeting->meeting_date->copy()->locale('id')->translatedFormat('l, d F Y') : null;
+    $mulai = $meeting->time_start ? str_replace(':', '.', substr($meeting->time_start, 0, 5)) : null;
+    $selesai = $meeting->time_end ? str_replace(':', '.', substr($meeting->time_end, 0, 5)) : null;
+
+    $transkripData = [
+        'meetingId' => $meeting->id,
+        'noteId' => $note?->id,
+        'status' => $note?->status,
+        'summary' => $note?->summary ?? '',
+        'title' => $meeting->title,
+        'dateLabel' => $tgl,
+        'timeLabel' => $mulai ? ($selesai ? $mulai . ' - ' . $selesai : $mulai) : null,
+        'notulis' => $meeting->notulis?->name ?? auth()->user()->name,
+        'signatureUrl' => ($note && $note->signature_path)
+            ? url('/meetings/' . $meeting->id . '/note/' . $note->id . '/signature')
+            : null,
+    ];
+@endphp
+
 <body class="bg-white text-gray-800 font-sans antialiased min-h-screen flex" x-data="transkripApp()">
 
     @include('partials.sidebar')
@@ -37,13 +64,16 @@
         <header class="bg-white border-b border-gray-200 px-8 h-20 flex justify-end items-center no-print">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-[#D1D5DB] rounded-full shrink-0"></div>
-                <span class="text-xs font-bold text-gray-800 tracking-wider">USERNAME</span>
+                <span class="text-xs font-bold text-gray-800 tracking-wider">{{ auth()->user()->name }}</span>
             </div>
         </header>
 
         <!-- KONTEN TRANSKRIP / ALUR NOTULENSI -->
         <main class="p-8 space-y-6 max-w-7xl w-full mx-auto print-container">
-            <h2 class="text-2xl md:text-3xl font-black text-[#701A1E] tracking-tight">Transkrip Notulensi</h2>
+            <div>
+                <h2 class="text-2xl md:text-3xl font-black text-[#701A1E] tracking-tight">Transkrip Notulensi</h2>
+                <p class="text-sm font-semibold text-[#701A1E]/80 mt-1" x-text="title"></p>
+            </div>
 
             <!-- ============================================================== -->
             <!-- TAMPILAN 1: BACA / EDIT NOTULENSI                              -->
@@ -80,12 +110,14 @@
                 </div>
 
                 <!-- KOTAK TEKS TRANSKRIP -->
-                <div id="editor" 
-                     :contenteditable="mode === 'edit'" 
-                     :class="mode === 'edit' ? 'focus:ring-2 focus:ring-[#701A1E]/30 bg-[#ECECEC]' : 'bg-[#ECECEC]'"
-                     class="rounded-2xl p-6 min-h-[420px] shadow-sm outline-none text-sm text-[#701A1E] leading-relaxed transition-all">
-                    Lorem ipsum dolor sit amet, enim ad adipiscing ea velit et anim. In ea commodo ut velit proident sed proident sunt in consectetur. Consequat eiusmod eiusmod ut ad dolor in et minim.
-                </div>
+                <div id="editor"
+                    x-ref="editor"
+                    data-placeholder="Belum ada isi notulensi. Klik EDIT NOTULENSI lalu tulis hasil rapat di sini."
+                    :contenteditable="mode === 'edit'"
+                    :class="mode === 'edit' ? 'focus:ring-2 focus:ring-[#701A1E]/30 bg-[#ECECEC]' : 'bg-[#ECECEC]'"
+                    class="rounded-2xl p-6 min-h-[420px] shadow-sm outline-none text-sm text-[#701A1E] leading-relaxed transition-all"></div>
+
+                <p x-show="errorMsg" x-cloak class="text-xs text-red-600 font-semibold whitespace-pre-line" x-text="errorMsg"></p>
 
                 <!-- TOMBOL AKSI SEBELAH KANAN BAWAH -->
                 <div class="flex items-center justify-end gap-4 pt-2">
@@ -97,7 +129,7 @@
                                 EDIT NOTULENSI
                             </button>
                             <button type="button" 
-                                    @click="mode = 'finalisasi'; $nextTick(() => initCanvas())" 
+                                    @click="bukaFinalisasi()"
                                     class="px-10 py-3 bg-[#701A1E] hover:bg-[#581417] text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95">
                                 FINALISASI
                             </button>
@@ -105,10 +137,11 @@
                     </template>
 
                     <template x-if="mode === 'edit'">
-                        <button type="button" 
-                                @click="mode = 'baca'" 
-                                class="px-10 py-3 bg-[#701A1E] hover:bg-[#581417] text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95">
-                            SIMPAN
+                        <button type="button"
+                                @click="simpanCatatan()"
+                                :disabled="busy"
+                                class="px-10 py-3 bg-[#701A1E] hover:bg-[#581417] text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="busy ? 'MENYIMPAN...' : 'SIMPAN'"></span>
                         </button>
                     </template>
                 </div>
@@ -120,16 +153,12 @@
             <div x-show="mode === 'finalisasi'" x-cloak class="space-y-6">
                 <!-- KARTU ATAS: RINGKASAN NOTULENSI -->
                 <div class="bg-[#ECECEC] rounded-2xl p-6 space-y-3 shadow-sm">
-                    <h3 class="text-xl md:text-2xl font-extrabold text-[#701A1E] leading-tight">
-                        Lorem ipsum dolor sit amet, enim ad adipiscing ea velit et anim.
-                    </h3>
+                    <h3 class="text-xl md:text-2xl font-extrabold text-[#701A1E] leading-tight" x-text="title"></h3>
                     <div class="text-xs font-bold text-[#701A1E] space-y-0.5">
-                        <p>Senin, 21 Agustus 2029</p>
-                        <p>09.00</p>
+                        <p x-show="dateLabel" x-text="dateLabel"></p>
+                        <p x-show="timeLabel" x-text="timeLabel"></p>
                     </div>
-                    <p class="text-xs text-[#701A1E] leading-relaxed pt-1">
-                        Lorem ipsum dolor sit amet, enim ad adipiscing ea velit et anim. In ea commodo ut velit proident sed proident sunt in consectetur. Consequat eiusmod eiusmod ut ad dolor in et minim.
-                    </p>
+                    <div class="text-xs text-[#701A1E] leading-relaxed pt-1 max-h-64 overflow-y-auto" x-html="summary"></div>
                 </div>
 
                 <!-- KARTU BAWAH: MASUKKAN TANDA TANGAN -->
@@ -153,11 +182,16 @@
                 </div>
 
                 <!-- TOMBOL SIMPAN FINALISASI -->
-                <div class="flex justify-end pt-2">
-                    <button type="button" 
-                            @click="simpanFinalisasi()" 
-                            class="px-10 py-3 bg-[#701A1E] hover:bg-[#581417] text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95">
-                        SIMPAN
+                <p x-show="errorMsg" x-cloak class="text-xs text-red-600 font-semibold whitespace-pre-line text-right" x-text="errorMsg"></p>
+                <div class="flex justify-end pt-2 gap-4">
+                    <button type="button" @click="mode = 'baca'" class="px-8 py-3 bg-[#ECECEC] hover:bg-[#dcdcdc] text-[#701A1E] text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95">
+                        KEMBALI
+                    </button>
+                    <button type="button"
+                            @click="simpanFinalisasi()"
+                            :disabled="busy"
+                            class="px-10 py-3 bg-[#701A1E] hover:bg-[#581417] text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-text="busy ? 'MENYIMPAN...' : 'SIMPAN'"></span>
                     </button>
                 </div>
             </div>
@@ -169,29 +203,26 @@
                 <!-- KARTU UTAMA TRANSKRIP NOTULENSI LENGKAP -->
                 <div class="bg-[#ECECEC] rounded-2xl p-8 md:p-10 space-y-6 shadow-sm print-card">
                     <!-- JUDUL RAPAT / NOTULENSI -->
-                    <h3 class="text-2xl md:text-3xl font-extrabold text-[#701A1E] leading-snug">
-                        Lorem ipsum dolor sit amet, enim ad adipiscing ea velit et anim.
-                    </h3>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-[#701A1E] leading-snug" x-text="title"></h3>
 
-                    <!-- WAKTU RAPAT -->
                     <p class="text-sm font-semibold text-[#701A1E]">
-                        09.00
+                        <span x-text="dateLabel"></span><span x-show="dateLabel && timeLabel"> &middot; </span><span x-text="timeLabel"></span>
                     </p>
 
                     <!-- ISI PARAGRAF NOTULENSI -->
-                    <div class="space-y-5 text-sm text-[#701A1E] leading-relaxed text-justify">
-                        <p>
+                    <div class="space-y-5 text-sm text-[#701A1E] leading-relaxed text-justify" x-html="summary"></div>
+                        {{-- <p>
                             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
                         </p>
                         <p>
                             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                        </p>
+                        </p> --}}
                     </div>
 
                     <!-- TANGGAL DAN TANDA TANGAN NOTULEN (POJOK KANAN BAWAH) -->
                     <div class="flex justify-end pt-6">
                         <div class="text-center min-w-[220px] flex flex-col items-center">
-                            <p class="text-sm font-bold text-[#701A1E]">Senin, 21 Agustus 2029</p>
+                            <p class="text-sm font-bold text-[#701A1E]" x-text="dateLabel"></p>
 
                             <!-- HASIL TANDA TANGAN DIGITAL DARI CANVAS -->
                             <div class="h-20 my-2 flex items-center justify-center">
@@ -205,7 +236,8 @@
                                 </template>
                             </div>
 
-                            <p class="text-sm font-bold text-[#701A1E]">Notulen</p>
+                            <p class="text-sm font-bold text-[#701A1E]">Notulis</p>
+                            <p class="text-xs font-semibold text-[#701A1E]" x-text="notulis"></p>
                         </div>
                     </div>
                 </div>
@@ -286,43 +318,127 @@
 
     <!-- SCRIPT ALPINE.JS & LOGIKA TANDA TANGAN & UNDUH DOKUMEN -->
     <script>
+        window.__TRANSKRIP = @json($transkripData);
+    
         function transkripApp() {
+            const d = window.__TRANSKRIP;
+            const params = new URLSearchParams(window.location.search);
+            const awal = d.status === 'finalized' ? 'selesai' : (params.get('mode') || (d.noteId ? 'baca' : 'edit'));
+    
             return {
-                // Mode: 'baca', 'edit', 'finalisasi', atau 'selesai'
-                mode: new URLSearchParams(window.location.search).get('mode') || 'baca',
+                mode: awal,
+                meetingId: d.meetingId,
+                noteId: d.noteId,
+                status: d.status,
+                summary: d.summary,
+                title: d.title,
+                dateLabel: d.dateLabel,
+                timeLabel: d.timeLabel,
+                notulis: d.notulis,
+                signatureData: d.signatureUrl,
+    
+                busy: false,
+                errorMsg: '',
+                showSavedModal: false,
+    
                 canvas: null,
                 ctx: null,
                 isDrawing: false,
-                signatureData: null,
-                showSavedModal: false,
-
+                hasDrawn: false,
+    
+                init() {
+                    this.$refs.editor.innerHTML = this.summary;
+                },
+    
+                async api(method, url, body) {
+                    const headers = {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    };
+                    const opts = { method: method, credentials: 'same-origin', headers: headers };
+    
+                    if (body instanceof FormData) {
+                        opts.body = body;
+                    } else if (body) {
+                        headers['Content-Type'] = 'application/json';
+                        opts.body = JSON.stringify(body);
+                    }
+    
+                    const res = await fetch(url, opts);
+                    const data = await res.json().catch(() => null);
+    
+                    if (!res.ok) {
+                        let msg = 'Terjadi kesalahan (kode ' + res.status + ').';
+                        if (data && data.errors) msg = Object.values(data.errors).flat().join('\n');
+                        else if (data && data.message) msg = data.message;
+                        throw new Error(msg);
+                    }
+                    return data;
+                },
+    
                 format(command) {
                     document.execCommand(command, false, null);
                 },
-
+    
+                async simpanCatatan() {
+                    this.errorMsg = '';
+                    const html = this.$refs.editor.innerHTML;
+    
+                    if (this.$refs.editor.innerText.trim() === '') {
+                        this.errorMsg = 'Isi notulensi tidak boleh kosong.';
+                        return;
+                    }
+    
+                    this.busy = true;
+                    try {
+                        const base = '/meetings/' + this.meetingId + '/note';
+                        const data = this.noteId
+                            ? await this.api('PATCH', base + '/' + this.noteId, { summary: html })
+                            : await this.api('POST', base, { summary: html });
+    
+                        this.noteId = data.data.id;
+                        this.status = data.data.status;
+                        this.summary = data.data.summary;
+                        this.$refs.editor.innerHTML = this.summary;
+                        this.mode = 'baca';
+                    } catch (e) {
+                        this.errorMsg = e.message;
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+    
+                bukaFinalisasi() {
+                    this.errorMsg = '';
+                    if (!this.noteId) {
+                        this.errorMsg = 'Simpan isi notulensi dulu sebelum finalisasi.';
+                        return;
+                    }
+                    this.mode = 'finalisasi';
+                    this.$nextTick(() => this.initCanvas());
+                },
+    
                 initCanvas() {
                     this.canvas = document.getElementById('signatureCanvas');
                     if (!this.canvas) return;
-
+    
                     this.ctx = this.canvas.getContext('2d');
-                    
-                    // Sesuaikan ukuran internal canvas
+                    this.hasDrawn = false;
+    
                     const rect = this.canvas.getBoundingClientRect();
                     this.canvas.width = rect.width;
                     this.canvas.height = rect.height;
-
+    
                     this.ctx.strokeStyle = '#701A1E';
                     this.ctx.lineWidth = 2.5;
                     this.ctx.lineCap = 'round';
                     this.ctx.lineJoin = 'round';
-
-                    // Mouse
+    
                     this.canvas.onmousedown = (e) => this.startDrawing(e);
                     this.canvas.onmousemove = (e) => this.draw(e);
                     this.canvas.onmouseup = () => this.stopDrawing();
                     this.canvas.onmouseleave = () => this.stopDrawing();
-
-                    // Touch screen (HP / Tablet)
+    
                     this.canvas.ontouchstart = (e) => {
                         e.preventDefault();
                         this.startDrawing(e.touches[0]);
@@ -333,50 +449,70 @@
                     };
                     this.canvas.ontouchend = () => this.stopDrawing();
                 },
-
+    
                 startDrawing(e) {
                     this.isDrawing = true;
                     const rect = this.canvas.getBoundingClientRect();
                     this.ctx.beginPath();
                     this.ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
                 },
-
+    
                 draw(e) {
                     if (!this.isDrawing) return;
                     const rect = this.canvas.getBoundingClientRect();
                     this.ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
                     this.ctx.stroke();
+                    this.hasDrawn = true;
                 },
-
+    
                 stopDrawing() {
                     this.isDrawing = false;
                 },
-
+    
                 clearCanvas() {
                     if (this.ctx && this.canvas) {
                         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        this.hasDrawn = false;
                     }
                 },
-
-                // Simpan tanda tangan dan langsung beralih ke tampilan Transkrip Selesai
-                simpanFinalisasi() {
-                    if (this.canvas) {
+    
+                async simpanFinalisasi() {
+                    this.errorMsg = '';
+    
+                    if (!this.canvas || !this.hasDrawn) {
+                        this.errorMsg = 'Tanda tangan masih kosong.';
+                        return;
+                    }
+    
+                    this.busy = true;
+                    try {
+                        const blob = await new Promise((resolve) => this.canvas.toBlob(resolve, 'image/png'));
+                        const fd = new FormData();
+                        fd.append('signature', blob, 'tanda-tangan.png');
+    
+                        const base = '/meetings/' + this.meetingId + '/note/' + this.noteId;
+                        await this.api('POST', base + '/signature', fd);
+                        await this.api('POST', base + '/finalize');
+    
                         this.signatureData = this.canvas.toDataURL('image/png');
+                        this.status = 'finalized';
+                        this.mode = 'selesai';
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } catch (e) {
+                        this.errorMsg = e.message;
+                    } finally {
+                        this.busy = false;
                     }
-                    this.mode = 'selesai';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
-
-                // Simpan notulensi akhir (menampilkan popup notifikasi sukses)
+    
                 simpanNotulensi() {
                     this.showSavedModal = true;
                 },
-
-                // Fungsi Unduh PDF
+    
                 unduhPdf() {
                     window.print();
                 }
-            }
+            };
         }
     </script>
 </body>

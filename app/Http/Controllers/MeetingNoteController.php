@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Meeting;
 use App\Models\MeetingNote;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -37,7 +38,7 @@ class MeetingNoteController extends Controller
 
         $meetingNote = MeetingNote::create([
             'meeting_id' => $meeting->id,
-            'summary' => $validated['summary'],
+            'summary' => HtmlSanitizer::clean($validated['summary']),
             'status' => 'draft',
         ]);
 
@@ -63,13 +64,26 @@ class MeetingNoteController extends Controller
         ]);
 
         $meetingNote->update([
-            'summary' => $validated['summary'],
+            'summary' => HtmlSanitizer::clean($validated['summary']),
         ]);
 
         return response()->json([
             'message' => 'Notulen berhasil diperbarui.',
             'data' => $meetingNote->fresh(),
         ]);
+    }
+
+    # Menampilkan gambar tanda tangan (disk private)
+    public function signature(Meeting $meeting, MeetingNote $meetingNote)
+    {
+        abort_unless(
+            $meetingNote->meeting_id == $meeting->id
+                && $meetingNote->signature_path
+                && Storage::disk('local')->exists($meetingNote->signature_path),
+            404
+        );
+
+        return Storage::disk('local')->response($meetingNote->signature_path);
     }
 
     # Upload e-signature
@@ -94,7 +108,7 @@ class MeetingNoteController extends Controller
 
         $signaturePath = $request->file('signature')->store(
             'meetings/' . $meeting->id . '/signatures',
-            'public'
+            'local'
         );
 
         $meetingNote->update([

@@ -87,7 +87,16 @@
                     </div>
 
                     <!-- FORM REGISTRASI -->
-                    <form @submit.prevent="handleSubmit()" class="space-y-4">
+                    <form method="POST" action="{{ route('register') }}" @submit="handleSubmit($event)" class="space-y-4">
+                        @csrf
+                    
+                        @if ($errors->any())
+                            <div class="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 space-y-0.5">
+                                @foreach ($errors->all() as $err)
+                                    <p>{{ $err }}</p>
+                                @endforeach
+                            </div>
+                        @endif
                         
                         <!-- BARIS 1: NAMA LENGKAP & NIP -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -113,6 +122,18 @@
                                     required
                                 >
                             </div>
+                        </div>
+
+                        <!-- USERNAME -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Username</label>
+                            <input
+                                type="text"
+                                name="username"
+                                placeholder="Huruf, angka, strip, atau underscore"
+                                class="w-full px-3.5 py-2 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#6B1D1D]/20 focus:border-[#6B1D1D] transition-all placeholder:text-gray-400"
+                                required
+                            >
                         </div>
 
                         <!-- BARIS 2: EMAIL & UNIT/INSTANSI -->
@@ -384,14 +405,13 @@
                     }
                 },
 
-                handleSubmit() {
+                handleSubmit(event) {
                     if (this.password !== this.confirmPassword) {
+                        event.preventDefault();
                         this.errorMessage = 'Konfirmasi kata sandi tidak cocok dengan kata sandi yang dimasukkan!';
                         return;
                     }
                     this.errorMessage = '';
-                    // Tampilkan popup modal sukses
-                    this.showSuccessModal = true;
                 },
 
                 handleRedirectLogin() {

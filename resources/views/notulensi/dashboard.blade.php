@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Buat Notulensi - SIGAP BRIDA</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
@@ -72,16 +73,7 @@
             </div>
 
             <!-- GRID DUA KOLOM: FORM SPESIFIKASI & REKAM AUDIO -->
-            <div x-data="{
-                formKiri: { judul: '', lokasi: '', pemimpin: '', notulis_id: {{ auth()->id() }}, poin: '' },
-                formKanan: { judul: '', poin: '' },
-                showSuccessModal: false,
-                copyData() {
-                    this.formKanan.judul = this.formKiri.judul;
-                    this.formKanan.poin = this.formKiri.poin;
-                    this.showSuccessModal = true;
-                }
-            }" class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start relative">
+            <div x-data="agendaForm()" class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start relative">
                 
                 <!-- KOLOM KIRI: SPESIFIKASI & AGENDA RAPAT -->
                 <div class="bg-[#ECECEC] p-6 rounded-2xl space-y-4">
@@ -115,9 +107,10 @@
                         </div>
                     </div>
 
-                    <div class="pt-2 flex justify-center">
-                        <button type="button" @click="copyData()" class="px-8 py-2.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-xs font-bold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95">
-                            SIMPAN
+                    <div class="pt-2 flex flex-col items-center gap-2">
+                        <p x-show="formError" x-cloak class="text-xs text-red-600 font-semibold text-center whitespace-pre-line" x-text="formError"></p>
+                        <button type="button" @click="simpanAgenda()" :disabled="saving" class="px-8 py-2.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-xs font-bold uppercase tracking-wider rounded-2xl shadow-sm transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="saving ? 'MENYIMPAN...' : 'SIMPAN'"></span>
                         </button>
                     </div>
                 </div>
@@ -168,15 +161,12 @@
                                 <audio :src="audioUrl" controls class="w-full rounded-lg h-9"></audio>
                             </div>
 
-                            <div class="w-full space-y-3 pt-3">
-                                <div>
-                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">JUDUL RAPAT</label>
-                                    <input type="text" x-model="formKanan.judul" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">DAFTAR POIN INTI PEMBAHASAN</label>
-                                    <textarea x-model="formKanan.poin" rows="3" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm resize-none"></textarea>
-                                </div>
+                            <div class="pt-2 flex flex-col items-center gap-2">
+                                <p x-show="audioError" x-cloak class="text-xs text-red-600 font-semibold text-center whitespace-pre-line" x-text="audioError"></p>
+                                <button type="button" @click="submitAudio(meetingId)" :disabled="uploading || !meetingId" class="inline-block px-8 py-2.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-sm transition text-center disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-text="uploading ? 'MENGUNGGAH...' : 'UBAH KE TEKS'"></span>
+                                </button>
+                                <p x-show="!meetingId" class="text-[11px] text-gray-500">Simpan agenda rapat di sebelah kiri dulu.</p>
                             </div>
                         </div>
                     </template>
@@ -198,23 +188,24 @@
                                         <span class="px-4 py-1.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-[11px] font-bold rounded-lg shadow-sm transition">
                                             Choose File
                                         </span>
+                                        <span class="text-[11px] text-gray-600 max-w-[16rem] truncate" x-text="uploadFile ? uploadFile.name : 'Belum ada file dipilih'"></span>
                                     </div>
-                                    <input type="file" accept="audio/*" class="hidden">
+                                    <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" class="hidden" @change="onFile($event)">
                                 </label>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">
-                                        HARI/TANGGAL
-                                    </label>
-                                    <input type="date" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm text-gray-700">
+                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">HARI/TANGGAL</label>
+                                    <input type="date" x-model="meetingDate" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm text-gray-700">
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">
-                                        WAKTU MULAI
-                                    </label>
-                                    <input type="time" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm text-gray-700">
+                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">WAKTU MULAI</label>
+                                    <input type="time" x-model="timeStart" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm text-gray-700">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-[#6B1D1D] uppercase tracking-wider mb-1">WAKTU SELESAI</label>
+                                    <input type="time" x-model="timeEnd" class="w-full px-3.5 py-2 bg-white rounded-xl text-xs font-medium border-none outline-none focus:ring-2 focus:ring-[#6B1D1D] shadow-sm text-gray-700">
                                 </div>
                             </div>
 
@@ -233,10 +224,12 @@
                                 </div>
                             </div>
 
-                            <div class="pt-2 flex justify-center">
-                                <a href="/transkrip-notulensi" class="inline-block px-8 py-2.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-sm transition text-center">
-                                    UBAH KE TEKS
-                                </a>
+                            <div class="pt-2 flex flex-col items-center gap-2">
+                                <p x-show="audioError" x-cloak class="text-xs text-red-600 font-semibold text-center whitespace-pre-line" x-text="audioError"></p>
+                                <button type="button" @click="submitAudio(meetingId)" :disabled="uploading || !meetingId" class="inline-block px-8 py-2.5 bg-[#6B1D1D] hover:bg-[#541616] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-sm transition text-center disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-text="uploading ? 'MENGUNGGAH...' : 'UBAH KE TEKS'"></span>
+                                </button>
+                                <p x-show="!meetingId" class="text-[11px] text-gray-500">Simpan agenda rapat di sebelah kiri dulu.</p>
                             </div>
                         </div>
                     </template>
@@ -300,53 +293,239 @@
 
     <!-- SCRIPT LOGIKA REKAM AUDIO ALPINE.JS -->
     <script>
+        const csrfToken = () => document.querySelector('meta[name="csrf-token"]').content;
+    
+        function errorText(res, data) {
+            if (data && data.errors) {
+                return Object.values(data.errors).flat().join('\n');
+            }
+            if (data && data.message) return data.message;
+            return 'Terjadi kesalahan (kode ' + res.status + ').';
+        }
+    
+        function agendaForm() {
+            return {
+                formKiri: { judul: '', lokasi: '', pemimpin: '', notulis_id: {{ auth()->id() }}, poin: '' },
+                formKanan: { judul: '', poin: '' },
+                meetingId: null,
+                saving: false,
+                formError: '',
+                showSuccessModal: false,
+    
+                async simpanAgenda() {
+                    this.formError = '';
+                    this.saving = true;
+    
+                    const topics = this.formKiri.poin
+                        .split('\n')
+                        .map(t => t.replace(/^\s*([-*\u2022]|\d+[.)])\s*/, '').trim())
+                        .filter(t => t !== '');
+    
+                    const payload = {
+                        title: this.formKiri.judul,
+                        location: this.formKiri.lokasi,
+                        meeting_leader: this.formKiri.pemimpin,
+                        notulis_id: this.formKiri.notulis_id,
+                        topics: topics,
+                    };
+    
+                    const url = this.meetingId ? '/meetings/' + this.meetingId : '/meetings';
+                    const method = this.meetingId ? 'PATCH' : 'POST';
+    
+                    try {
+                        const res = await fetch(url, {
+                            method: method,
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken(),
+                            },
+                            body: JSON.stringify(payload),
+                        });
+                        const data = await res.json().catch(() => null);
+    
+                        if (!res.ok) {
+                            this.formError = errorText(res, data);
+                            return;
+                        }
+    
+                        this.meetingId = data.data.id;
+                        this.formKanan.judul = this.formKiri.judul;
+                        this.formKanan.poin = topics.join('\n');
+                        this.showSuccessModal = true;
+                    } catch (e) {
+                        this.formError = 'Tidak dapat terhubung ke server.';
+                    } finally {
+                        this.saving = false;
+                    }
+                }
+            };
+        }
+    
         function audioRecorder() {
             return {
                 tab: 'rekam',
                 isRecording: false,
                 mediaRecorder: null,
+                stream: null,
                 audioChunks: [],
+                audioBlob: null,
                 audioUrl: null,
+                recordedStart: null,
+                recordedEnd: null,
                 timer: 0,
                 timerInterval: null,
-
+    
+                uploadFile: null,
+                uploadDuration: null,
+                meetingDate: '',
+                timeStart: '',
+                timeEnd: '',
+    
+                uploading: false,
+                audioError: '',
+    
                 async toggleRecording() {
                     if (!this.isRecording) {
                         try {
-                            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                            this.mediaRecorder = new MediaRecorder(stream);
+                            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                            this.mediaRecorder = new MediaRecorder(this.stream);
                             this.audioChunks = [];
-
+                            this.audioBlob = null;
+                            this.audioUrl = null;
+    
                             this.mediaRecorder.ondataavailable = (event) => {
-                                this.audioChunks.push(event.data);
+                                if (event.data.size > 0) this.audioChunks.push(event.data);
                             };
-
+    
                             this.mediaRecorder.onstop = () => {
-                                const audioBlob = new Blob(this.audioChunks, { type: 'audio/mp3' });
-                                this.audioUrl = URL.createObjectURL(audioBlob);
+                                const mime = this.mediaRecorder.mimeType || 'audio/webm';
+                                this.audioBlob = new Blob(this.audioChunks, { type: mime });
+                                this.audioUrl = URL.createObjectURL(this.audioBlob);
+                                this.stream.getTracks().forEach(t => t.stop());
                             };
-
+    
                             this.mediaRecorder.start();
+                            this.recordedStart = new Date();
+                            this.recordedEnd = null;
                             this.isRecording = true;
-                            
+    
                             this.timer = 0;
                             this.timerInterval = setInterval(() => { this.timer++; }, 1000);
                         } catch (err) {
                             alert('Gagal mengakses mikrofon! Pastikan izin mikrofon telah diberikan.');
                         }
                     } else {
+                        this.recordedEnd = new Date();
                         this.mediaRecorder.stop();
                         this.isRecording = false;
                         clearInterval(this.timerInterval);
                     }
                 },
-
+    
                 formatTime(seconds) {
                     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
                     const secs = (seconds % 60).toString().padStart(2, '0');
                     return `${mins}:${secs}`;
+                },
+    
+                onFile(event) {
+                    const file = event.target.files[0] || null;
+                    this.uploadFile = file;
+                    this.uploadDuration = null;
+                    if (!file) return;
+    
+                    const probe = new Audio();
+                    probe.preload = 'metadata';
+                    probe.src = URL.createObjectURL(file);
+                    probe.onloadedmetadata = () => {
+                        if (isFinite(probe.duration) && probe.duration >= 1) {
+                            this.uploadDuration = Math.round(probe.duration);
+                        }
+                        URL.revokeObjectURL(probe.src);
+                    };
+                },
+    
+                extensionFor(mime) {
+                    if (mime.includes('ogg')) return 'ogg';
+                    if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
+                    if (mime.includes('wav')) return 'wav';
+                    if (mime.includes('mpeg') || mime.includes('mp3')) return 'mp3';
+                    return 'webm';
+                },
+    
+                async submitAudio(meetingId) {
+                    this.audioError = '';
+    
+                    if (!meetingId) {
+                        this.audioError = 'Simpan agenda rapat dulu.';
+                        return;
+                    }
+    
+                    const fd = new FormData();
+    
+                    if (this.tab === 'rekam') {
+                        if (this.isRecording) {
+                            this.audioError = 'Hentikan rekaman dulu.';
+                            return;
+                        }
+                        if (!this.audioBlob || !this.recordedStart || !this.recordedEnd) {
+                            this.audioError = 'Belum ada hasil rekaman.';
+                            return;
+                        }
+                        if (this.recordedEnd - this.recordedStart < 1000) {
+                            this.audioError = 'Rekaman terlalu singkat.';
+                            return;
+                        }
+                        fd.append('audio', this.audioBlob, 'rekaman.' + this.extensionFor(this.audioBlob.type));
+                        fd.append('source', 'record');
+                        fd.append('recorded_start_at', this.recordedStart.toISOString());
+                        fd.append('recorded_end_at', this.recordedEnd.toISOString());
+                        fd.append('audio_duration', Math.max(1, this.timer));
+                    } else {
+                        if (!this.uploadFile) {
+                            this.audioError = 'Pilih file audio dulu.';
+                            return;
+                        }
+                        if (!this.meetingDate || !this.timeStart || !this.timeEnd) {
+                            this.audioError = 'Isi tanggal, waktu mulai, dan waktu selesai.';
+                            return;
+                        }
+                        fd.append('audio', this.uploadFile);
+                        fd.append('source', 'upload');
+                        fd.append('meeting_date', this.meetingDate);
+                        fd.append('time_start', this.timeStart);
+                        fd.append('time_end', this.timeEnd);
+                        if (this.uploadDuration) fd.append('audio_duration', this.uploadDuration);
+                    }
+    
+                    this.uploading = true;
+                    try {
+                        const res = await fetch('/meetings/' + meetingId + '/audio', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken(),
+                            },
+                            body: fd,
+                        });
+                        const data = await res.json().catch(() => null);
+    
+                        if (!res.ok) {
+                            this.audioError = errorText(res, data);
+                            return;
+                        }
+    
+                        window.location.href = '/transkrip-notulensi/' + meetingId;
+                    } catch (e) {
+                        this.audioError = 'Tidak dapat terhubung ke server.';
+                    } finally {
+                        this.uploading = false;
+                    }
                 }
-            }
+            };
         }
     </script>
 </body>
